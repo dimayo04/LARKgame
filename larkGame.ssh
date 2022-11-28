@@ -6,12 +6,14 @@ clear
 cat - << EOF
            LARK GAME
 Using VIM movement keys to move around the terminal,
+Replace All the enemies with the ? with the respective letters!
 Use your shoot function to eliminate all the enemies before they reach you!
    LEFT:   H
    RIGHT:  L
    UP:     K
    DOWN:   J
-   FIRE:   R
+   FIRE:   D
+  Replace Letter : R (then eneter a letter and press enter 
    QUIT:   Q
                             Press any key.
 EOF
@@ -24,15 +26,15 @@ line3=( 0 10 10 10 10 10 10 10 10 )
 line4=( 0 5 5 5 5 5 5 5 5 )
 line5=( 0 1 1 1 1 1 1 1 1 )
 
-enemies1=( '\033[1;33m|L|\033[0m' '\033[1;34m|A|\033[0m'
-           '\033[1;31m|K|\033[0m'
-          '\033[1;35m|I|\033[0m' '\033[1;33m|S|\033[0m' )
-enemies2=( '\033[1;34m|F|\033[0m' '\033[1;32m|U|\033[0m'
-          '\033[1;34m|N|\033[0m'  )
-
+enemies1=( '\033[1;33m|U|\033[0m' '\033[1;34m|N|\033[0m'
+           '\033[1;31m|I|\033[0m'
+          '\033[1;35m|X|\033[0m' '\033[1;33m|I|\033[0m' )
+enemies2=( '\033[1;34m|S|\033[0m' '\033[1;32m|F|\033[0m'
+          '\033[1;34m|U|\033[0m' '\033[1;34m|N|\033[0m' )
+enemies3=('\033[1;34m|?A|\033[0m' '\033[1;34m|?D|\033[0m' '\033[1;34m|?Q|\033[0m' '\033[1;34m|?J|\033[0m')
 score=0
-
-# farthest right that the *leftmost* enemy can go to
+fcount=4
+# farthest right that the leftmost enemy can go to
 MAXRIGHT=40
 # furthest right that the player can go to
 FARRIGHT=70
@@ -41,9 +43,10 @@ FARRIGHT=70
 ship=30
 # shoot column; remains the same even if ship moves
 shootX=$ship
+replaceY=$ship
 # shoot height; 0 means it's ready to fire
 shootY=0
-# Positive direction to right, Negative to left
+replaceY=0
 direction=1
 offscreen=25
 bot=25
@@ -51,17 +54,17 @@ top=2
 MAXtop=10
 WAIT=0.7
 life=5
+count=0
 lifes=( '\033[1;31m<3\033[0m' '\033[1;31m<3\033[0m' '\033[1;31m<3\033[0m' '\033[1;31m<3\033[0m' '\033[1;31m<3\033[0m' )
 
-function drawline
+function make_enemies
 {
-  # draw a line of aliens; return the index of any alien killed
-  # note that only one alien can be killed at any time.
+  #makes enemies
   enemytype=$1
   shift
   let line="$enemytype * 2 + $top"
 
-  enemysonline=`echo $@ | tr ' ' '+' | bc`
+  enemysonline=echo $@ | tr ' ' '+' | bc
   if [ $enemysonline -eq 0 ]; then
 
     tput cup $line 0
@@ -69,7 +72,7 @@ function drawline
     return 0
   fi
   if [ $line -eq $bot ]; then
-    tput cup `expr $bot - 4` 6
+tput cup expr $bot - 4 6
     trap exit ALRM
     echo "YOU LOSE"
     sleep $WAIT
@@ -78,13 +81,13 @@ function drawline
     exit 1
   fi
   declare -a thisline
-  thisline=( `echo $@` )
+  thisline=( echo $@ )
 
   tput cup 0 0
   printf "Score: %-80d" $score
   killed=0
   # Clear the previous line
-  tput cup `expr $line - 1` 0
+  tput cup expr $line - 1 0
   printf "%80s" " "
 
   tput cup $line 0
@@ -93,143 +96,59 @@ function drawline
   printf "%-${offscreen}s"
 
   # Don't do this calculation in the for loop, it is slow even without expr
-  if (( $offscreen % 2 == 0 )); then
+  if (( $offscreen % 3 == 0 )); then
     thisenemy=${enemies1[$enemytype]}
-  else
+elif (($offscreen % 3 == 1 )); then
     thisenemy=${enemies2[$enemytype]}
+  else
+
+    thisenemy=${enemies3[$enemytype]}
   fi
 
-  # there are 4 aliens per line.
-  for i in `seq 1 4`
-  do
-    value=${thisline[$i]}
+  # there are 4 enemies per line.
+for i in 1 2 3 4 5
+do
+value=${thisline[$i]}
     avatar=$thisenemy
 
     if [ $value -gt 0 ]; then
       # detect and mark a collision
-      if [ $line -eq $shootY ]; then
-        let LEFT="$i *4 + $offscreen - 4"
-        let RIGHT="$i * 4 + $offscreen - 1"
-        if [ $shootX -ge $LEFT ] && [ $shootX -le $RIGHT ]; then
-
-# checks what letter you want to replace if it is right kills the enemy if it is wrong says wrong letter 
-echo "please enter a replacment letter "
-while ###[life > 0]
-do
-read -s -n 1 replace
-case "$replace" in
-l) if [ "$thisenemy"  ==  "${enemies1[0]}" ];
-    then
-      killed=$i
-      avatar='\033[1;31m***\033[0m'
-            ((score=$score + $value))
-      shootY=0
-break
-
-
-else
-echo "Wrong letter "
-life=$life-1
-break
+if [ "$thisenemy" == "$enemies3[$enemytype]" ];then
+      if [ $line == $replaceY ]; then
+          let LEFT="$i * 4 + $offscreen - 4"
+          let RIGHT="$i * 4 + $offscreen - 1"
+            if [ $replaceX -ge $LEFT ] && [ $replaceX -le $RIGHT ];
+            then
+                killed=$i
+                avatar='\033[1;31m|$replace"|\033[0m'
+                ((score=$score + 5))
+                replaceY=0
 fi
-;;
-a)if [ "$thisenemy" ==  "${enemies1[1]}" ];
-    then
-      killed=$i
-      avatar='\033[1;31m***\033[0m'
-            ((score=$score + $value))
-      shootY=0
-break
-else
-echo "Wrong letter "
-life=$life-1
-break
-fi;;
-k)if [ "$thisenemy" == "${enemies1[3]}" ];
-    then
-      killed=$i
-      avatar='\033[1;31m***\033[0m'
-            ((score=$scorre + $value))
-      shootY=0
-break
-else
-echo "Wronglife=$life-1 letter "
-life=$life-1
-break
-fi;;
-i)if [ "$thisenemy" == "${enemies1[4]}" ];
-    then
-      killed=$i
-      avatar='\033[1;31m***\033[0m'
-            ((score=$scorre + $value))
-      shootY=0
-break
-else
-echo "Wrong letter "
-life=$life-1
-fi;;
-s)if [ "$thisenemy" == "${enemies1[5]}" ];
-    then
-      killed=$i
-      avatar='\033[1;31m***\033[0m'
-            ((score=$scorre + $value))
-      shootY=0
-else
-echo "Wrong letter "
-life=$life-1
-break
-fi;;
-f)if [ "$thisenemy" == "${enemies2[0]}" ];
-    then
-      killed=$i
-      avatar='\033[1;31m***\033[0m'
-            ((score=$scorre + $value))
-      shootY=0
-break
-else
-echo "Wrong letter "
-life=$life-1
+        fi
 
-
-break
-fi;;
-u) if [ "$thisenemy" == "${enemies2[1]}" ];
-    then
-      killed=$i
-      avatar='\033[1;31m***\033[0m'
-            ((score=$scorre + $value))
-      shootY=0
-break
-else
-echo "Wrong letter "
-life=$life-1
-break
-fi;;
-n)if [ "$thisenemy" == "${enemies2[2]}" ];
-    then
-      killed=$i
-      avatar='\033[1;31m***\033[0m'
-            ((score=$scorre + $value))
-      shootY=0
-break
-else
-echo "Wrong letter "
-life=$life-1
-break
-fi;;
- esac
-done
+        else
+if [ $line -eq $shootY ]; then
+          let LEFT="$i * 4 + $offscreen - 4"
+          let RIGHT="$i * 4 + $offscreen - 1"
+            if [ $shootX -ge $LEFT ] && [ $shootX -le $RIGHT ];
+            then
+                killed=$i
+                avatar='\033[1;31m***\033[0m'
+                ((score=$score + 1))
+                shootY=0
+                 fi
         fi
       fi
-    fi
-
+fi
     if [ $value -eq 0 ]; then
       printf "    "
     else
-        echo -en "${avatar} "
+      echo -en "${avatar} "
     fi
-  done
-  return $killed
+
+done
+return $killed
+
 }
 function drawshoot
 {
@@ -245,7 +164,18 @@ function drawshoot
   tput cup $shootY $shootX
   echo -en "\033[1;31m*\033[0m"
 }
-
+function draw_replace
+{
+if [ $replaceY -eq 0 ]; then
+    # fell off the top of the screen
+    return
+  fi
+tput cup $replaceY $replaceX
+  printf " "
+  ((replaceY=replaceY-1))
+  tput cup $replaceY $replaceX
+  echo -en "\033[1;31m"$replace""
+}
 function drawship
 {
 
@@ -253,6 +183,7 @@ tput cup $bot 0
   printf "%80s" " "
   tput cup $bot $ship
   # Show shoot state by its color in the spaceship
+
   if [ $shootY -eq 0 ]; then
     col=31
   else
@@ -260,10 +191,11 @@ tput cup $bot 0
   fi
   echo -en "|--\033[1;${col}m*\033[0m--|"
 }
+
 function move
 {
   # move enemies left or right
-  # move shoot, check for collision
+# move shoot, check for collision
 
   (sleep $WAIT && kill -ALRM $$) &
 
@@ -279,22 +211,22 @@ function move
 
   ((offscreen=offscreen+direction))
 
-  drawline 0 ${line0[@]}
+  make_enemies 0 ${line0[@]}
   line0[$?]=0
-  drawline 1 ${line1[@]}
+  make_enemies 1 ${line1[@]}
   line1[$?]=0
-  drawline 2 ${line2[@]}
+  make_enemies 2 ${line2[@]}
   line2[$?]=0
-  drawline 3 ${line3[@]}
+  make_enemies 3 ${line3[@]}
   line3[$?]=0
-  drawline 4 ${line4[@]}
+make_enemies 4 ${line4[@]}
   line4[$?]=0
-  drawline 5 ${line5[@]}
+  make_enemies 5 ${line5[@]}
   line5[$?]=0
 
-  enemiesleft=`echo ${line0[@]} ${line1[@]} ${line2[@]} ${line3[@]}\
+  enemiesleft=echo ${line0[@]} ${line1[@]} ${line2[@]} ${line3[@]}\
          ${line4[@]} ${line5[@]} \
-      | tr ' ' '+' | bc`
+      | tr ' ' '+' | bc
   if [ $enemiesleft -eq 0 ]; then
     tput cup 5 5
     trap exit ALRM
@@ -305,7 +237,7 @@ function move
     echo; echo; echo
     exit 0
   fi
-
+draw_replace
   drawshoot
   drawship
 }
@@ -313,9 +245,6 @@ trap move ALRM
 
 clear
 drawship
-# To start enemies moving
-#prints hearts
-
 for i in $life
 do
 printf "${lifes[i]}"
@@ -333,15 +262,22 @@ do
        [ $ship -lt $FARRIGHT ] && ((ship=ship+1))
         drawship
         ;;
-    r)
+    d)
         if [ $shootY -eq 0 ]; then
           let shootX="$ship + 3"
           shootY=$bot
+fi
+        ;;
+r) #reads the letter to replace
+        read  replace
+        if [ $replaceY -eq 0 ]; then
+          let replaceX="$ship + 3"
+          replaceY=$bot
 
 
 
         fi
-        ;;
+;;
     q)
         echo "Goodbye!"
         tput cvvis
@@ -350,5 +286,6 @@ do
         sleep $WAIT
         exit 0
         ;;
-  esac
-done\\\\\\
+
+ esac
+done
